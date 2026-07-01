@@ -323,6 +323,43 @@
       </div>
     </section>
 
+    <!-- GYM -->
+    <section class="view" data-v="gym">
+      <div class="vhead"><h2>Gym</h2><div class="meta" id="gym-meta">TRAINING LOG</div></div>
+      <div class="stats" id="gym-stats"></div>
+      <div class="grid g2">
+        <div class="card">
+          <h3>Log Session <span class="tag">NEW</span></h3>
+          <div class="row" style="margin-bottom:12px;gap:8px">
+            <label class="fld" style="flex:1;margin:0"><span class="k">Date</span><input id="gd-date" type="date"></label>
+            <label class="fld" style="flex:1;margin:0"><span class="k">Split</span><select id="gd-split">
+              <option>Push</option><option>Pull</option><option>Legs</option>
+              <option>Upper</option><option>Lower</option><option>Full Body</option>
+              <option>Cardio</option><option>Other</option>
+            </select></label>
+          </div>
+          <div id="gd-exercises"></div>
+          <div class="addrow">
+            <input id="gd-ex-name" placeholder="Exercise (e.g. Bench Press)">
+            <button class="btn sm" onclick="addExercise()">ADD EXERCISE</button>
+          </div>
+          <label class="fld" style="margin-top:12px"><span class="k">Session Note</span><input id="gd-note" placeholder="Felt strong / short on time"></label>
+          <div class="row" style="margin-top:12px;gap:8px">
+            <button class="btn" onclick="saveSession()">SAVE SESSION</button>
+            <button class="btn ghost" onclick="discardDraft()">DISCARD</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3>PRs <span class="tag">HEAVIEST SET</span></h3>
+          <div id="gym-prs"></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <h3>History <span class="tag" id="gym-count"></span></h3>
+        <div id="gym-history"></div>
+      </div>
+    </section>
+
     <!-- JOURNAL -->
     <section class="view" data-v="journal">
       <div class="vhead"><h2>Journal</h2><div class="meta">REFLECTION</div></div>
@@ -334,6 +371,7 @@
             <span class="mut" style="align-self:center">Mood</span>
             <div class="dots" id="mood-dots"></div>
           </div>
+          <div id="mood-trend"></div>
           <textarea id="jtext" placeholder="Write freely…"></textarea>
           <button class="btn" style="margin-top:10px" onclick="saveJournal()">SAVE ENTRY</button>
           <button class="btn ghost sm" style="margin-top:10px;margin-left:6px" onclick="newPrompt()">NEW PROMPT</button>
@@ -357,7 +395,8 @@ const DEFAULT={
   water:{}, sleep:[], workout:{}, habits:[
     {t:'Read 30 min',days:{}},{t:'No phone first hour',days:{}},{t:'Sunlight',days:{}}
   ],
-  journal:[], mood:{}
+  journal:[], mood:{},
+  gym:[], gymDraft:null
 };
 const hasHostStorage = typeof window.storage === 'object' && window.storage && typeof window.storage.get === 'function';
 async function load(){
@@ -403,7 +442,7 @@ function tick(){
 setInterval(tick,1000);
 
 /* ───────── NAV ───────── */
-const VIEWS=[['home','Command'],['quant','Recruiting'],['college','College'],['self','Daily'],['journal','Journal']];
+const VIEWS=[['home','Command'],['quant','Recruiting'],['college','College'],['self','Daily'],['gym','Gym'],['journal','Journal']];
 function buildNav(){
   const n=document.getElementById('nav');
   n.innerHTML=VIEWS.map((v,i)=>`<button class="navitem${i===0?' on':''}" data-go="${v[0]}"><span class="idx">${String(i+1).padStart(2,'0')}</span>${v[1]}</button>`).join('');
@@ -538,17 +577,24 @@ function renderWater(){
   const n=DB.water[today()]||0;
   document.getElementById('water-tag').textContent=n+'/8';
   let h='';for(let i=1;i<=8;i++){h+=`<div class="dot ${i<=n?'fill':''}" onclick="setWater(${i})">${i<=n?'':i}</div>`;}
+  const days=lastNDays(30);
+  const series=days.map(k=>DB.water[k]||0);
+  h += trendStrip('30D TREND', sparkbars(series,{max:8}));
   document.getElementById('water-dots').innerHTML=h;
 }
 function setWater(i){const c=DB.water[today()]||0;DB.water[today()]=(c===i)?i-1:i;save();renderWater();renderHome();}
 function logSleep(){const v=parseFloat(val('sleep-in'));if(!v)return;DB.sleep=DB.sleep.filter(s=>s.d!==today());DB.sleep.push({d:today(),h:v});clr('sleep-in');save();renderSleep();}
 function renderSleep(){
   const last=DB.sleep.slice(-5).reverse();
-  document.getElementById('sleep-hist').innerHTML=last.length? last.map(s=>`
+  const days=lastNDays(30);
+  const sleepMap={};DB.sleep.forEach(s=>sleepMap[s.d]=s.h);
+  const series=days.map(k=>sleepMap[k]||0);
+  const listHtml = last.length? last.map(s=>`
     <div class="track"><span class="lab">${fmtD(s.d)}</span>
     <div class="bar"><i style="width:${Math.min(100,s.h/9*100)}%"></i></div>
     <span class="mut" style="width:36px;text-align:right">${s.h}h</span></div>`).join('')
     : '<div class="empty">NO SLEEP LOGGED</div>';
+  document.getElementById('sleep-hist').innerHTML = listHtml + trendStrip('30D TREND', sparkbars(series,{max:10}));
 }
 function weekKeyForWorkout(){const d=new Date();const day=(d.getDay()+6)%7;d.setDate(d.getDate()-day);return d.toISOString().slice(0,10);}
 function renderWorkout(){
@@ -580,13 +626,162 @@ function renderSelf(){renderWater();renderSleep();renderWorkout();renderHabits()
   document.getElementById('self-meta').textContent=`${w}/8 WATER · ${sl?sl.h+'H SLEEP':'NO SLEEP LOG'}`;
 }
 
+/* ───────── GYM ───────── */
+const SPLITS=['Push','Pull','Legs','Upper','Lower','Full Body','Cardio','Other'];
+function ensureDraft(){
+  if(!DB.gymDraft) DB.gymDraft={d:today(),split:'Push',note:'',exercises:[]};
+}
+function addExercise(){
+  ensureDraft();
+  const n=val('gd-ex-name');if(!n)return;
+  DB.gymDraft.exercises.push({id:uid(),name:n,sets:[]});
+  clr('gd-ex-name');save();renderGymDraft();
+}
+function addSet(exId){
+  ensureDraft();
+  const ex=DB.gymDraft.exercises.find(e=>e.id===exId);if(!ex)return;
+  const reps=parseInt(val(`set-r-${exId}`));
+  const weight=parseFloat(val(`set-w-${exId}`));
+  if(!reps)return;
+  ex.sets.push({reps, weight: isNaN(weight)?0:weight});
+  clr(`set-r-${exId}`);clr(`set-w-${exId}`);save();renderGymDraft();
+  const r=document.getElementById(`set-r-${exId}`);if(r)r.focus();
+}
+function delSet(exId,i){
+  const ex=DB.gymDraft.exercises.find(e=>e.id===exId);if(!ex)return;
+  ex.sets.splice(i,1);save();renderGymDraft();
+}
+function delExercise(exId){
+  DB.gymDraft.exercises=DB.gymDraft.exercises.filter(e=>e.id!==exId);
+  save();renderGymDraft();
+}
+function saveSession(){
+  ensureDraft();
+  const d=val('gd-date')||today();
+  const split=val('gd-split');
+  const note=val('gd-note');
+  if(!DB.gymDraft.exercises.length){alert('Add at least one exercise first');return;}
+  DB.gym.unshift({id:uid(),d,split,note,exercises:DB.gymDraft.exercises});
+  // also mark that day as a workout day for the Daily-view dot strip
+  DB.workout[d]=DB.workout[d]||split;
+  DB.gymDraft={d:today(),split:'Push',note:'',exercises:[]};
+  clr('gd-note');
+  save();renderGym();renderSelf();
+}
+function discardDraft(){
+  if(DB.gymDraft && DB.gymDraft.exercises.length && !confirm('Discard current session draft?'))return;
+  DB.gymDraft={d:today(),split:'Push',note:'',exercises:[]};
+  clr('gd-note');
+  save();renderGymDraft();
+}
+function delSession(id){
+  if(!confirm('Delete this session?'))return;
+  DB.gym=DB.gym.filter(s=>s.id!==id);save();renderGym();
+}
+function computePRs(){
+  const map={};
+  for(const s of DB.gym){
+    for(const ex of s.exercises){
+      const key=(ex.name||'').trim().toLowerCase();
+      if(!key)continue;
+      for(const st of ex.sets){
+        const w=st.weight||0;
+        if(!map[key] || w>map[key].w){
+          map[key]={name:ex.name.trim(), w, reps:st.reps, d:s.d};
+        }
+      }
+    }
+  }
+  return Object.values(map).sort((a,b)=>b.w-a.w);
+}
+function renderGymDraft(){
+  ensureDraft();
+  const dateEl=document.getElementById('gd-date');
+  if(dateEl && !dateEl.value) dateEl.value=DB.gymDraft.d||today();
+  const wrap=document.getElementById('gd-exercises');
+  wrap.innerHTML = DB.gymDraft.exercises.length? DB.gymDraft.exercises.map(ex=>`
+    <div style="border:1px solid var(--line);padding:12px;margin-bottom:10px;background:var(--panel2)">
+      <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px">
+        <b>${esc(ex.name)}</b>
+        <button class="x" onclick="delExercise('${ex.id}')">✕</button>
+      </div>
+      ${ex.sets.length? ex.sets.map((s,i)=>`
+        <div class="chk" style="padding:5px 0;border-bottom:1px solid var(--line)">
+          <span class="pill g">SET ${i+1}</span>
+          <span class="t">${s.reps} × ${s.weight||0}</span>
+          <button class="x" onclick="delSet('${ex.id}',${i})">✕</button>
+        </div>`).join('') : '<div class="mut" style="padding:4px 0">No sets yet</div>'}
+      <div class="addrow" style="margin-top:10px">
+        <input id="set-r-${ex.id}" type="number" placeholder="reps" style="max-width:80px" onkeydown="if(event.key==='Enter')addSet('${ex.id}')">
+        <input id="set-w-${ex.id}" type="number" step="0.5" placeholder="weight" style="max-width:100px" onkeydown="if(event.key==='Enter')addSet('${ex.id}')">
+        <button class="btn sm" onclick="addSet('${ex.id}')">ADD SET</button>
+      </div>
+    </div>
+  `).join('') : '';
+}
+function renderGym(){
+  renderGymDraft();
+  const total=DB.gym.length;
+  const thisWk=DB.gym.filter(s=>weekKeys().includes(s.d)).length;
+  const totalSets=DB.gym.reduce((sum,s)=>sum+s.exercises.reduce((a,e)=>a+e.sets.length,0),0);
+  const uniq=new Set();DB.gym.forEach(s=>s.exercises.forEach(e=>uniq.add((e.name||'').trim().toLowerCase())));
+  document.getElementById('gym-stats').innerHTML=[
+    [total,'SESSIONS'],[thisWk,'THIS WEEK'],[totalSets,'TOTAL SETS'],[uniq.size,'EXERCISES']
+  ].map(s=>`<div class="stat"><div class="n">${s[0]}</div><div class="l">${s[1]}</div></div>`).join('');
+  document.getElementById('gym-meta').textContent=total+' SESSIONS LOGGED';
+  document.getElementById('gym-count').textContent=total+(total===1?' SESSION':' SESSIONS');
+  const prs=computePRs();
+  document.getElementById('gym-prs').innerHTML = prs.length? prs.slice(0,10).map(p=>`
+    <div class="chk">
+      <div class="t">${esc(p.name)}</div>
+      <span class="pill b">${p.w} × ${p.reps}</span>
+      <span class="mut" style="margin-left:8px">${fmtD(p.d)}</span>
+    </div>`).join('') : '<div class="empty">SAVE A SESSION TO SEE PRs</div>';
+  document.getElementById('gym-history').innerHTML = DB.gym.length? DB.gym.map(s=>`
+    <div class="journal-entry">
+      <div class="jd"><span>${fmtD(s.d)} · ${esc(s.split)}</span>
+      <button class="x" onclick="delSession('${s.id}')">✕</button></div>
+      ${s.exercises.map(ex=>`
+        <div style="margin-bottom:6px;font-size:12.5px"><b>${esc(ex.name)}</b> <span class="mut">${ex.sets.map(st=>`${st.reps}×${st.weight||0}`).join(', ')||'—'}</span></div>
+      `).join('')}
+      ${s.note?`<div class="prompt" style="margin-top:8px">${esc(s.note)}</div>`:''}
+    </div>`).join('') : '<div class="empty">NO SESSIONS LOGGED YET</div>';
+}
+
+/* ───────── SPARKLINES ───────── */
+function lastNDays(n){const a=[];for(let i=n-1;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);a.push(d.toISOString().slice(0,10));}return a;}
+function sparkbars(values, {height=28, max=null}={}){
+  if(!values.length) return '<div class="empty" style="padding:6px 0">NO DATA</div>';
+  const M = max ?? Math.max(...values, 1);
+  const anyData = values.some(v=>v>0);
+  if(!anyData) return '<div class="empty" style="padding:6px 0">NO DATA</div>';
+  return `<div style="display:flex;gap:1px;align-items:flex-end;height:${height}px">${
+    values.map(v=>{
+      const h = M ? Math.max(2, (Math.min(v,M)/M)*height) : 2;
+      const fill = v>0 ? '#fff' : '#242424';
+      return `<div style="flex:1;height:${h}px;background:${fill};min-width:2px"></div>`;
+    }).join('')
+  }</div>`;
+}
+function trendStrip(label, seriesHtml){
+  return `<div style="margin-top:14px">
+    <div class="mut" style="font-size:9px;letter-spacing:2px;margin-bottom:5px">${label}</div>
+    ${seriesHtml}
+  </div>`;
+}
+
 /* ───────── JOURNAL ───────── */
 const PROMPTS=['What went right today, and why?','One thing you avoided — name it.','What would make tomorrow a win?','Where did your attention leak?','What are you actually anxious about right now?','One thing you learned in the last 24h.','Who do you want to become this year?','What did you do today that future-you will thank you for?'];
 let curMood=0;
 function newPrompt(){document.getElementById('jprompt').textContent=PROMPTS[Math.floor(Math.random()*PROMPTS.length)];}
 function renderMood(){
-  document.getElementById('mood-dots').innerHTML=[1,2,3,4,5].map(m=>`<div class="dot ${m<=curMood?'fill':''}" onclick="setMood(${m})">${m<=curMood?'':m}</div>`).join('');
+  let h=[1,2,3,4,5].map(m=>`<div class="dot ${m<=curMood?'fill':''}" onclick="setMood(${m})">${m<=curMood?'':m}</div>`).join('');
+  const days=lastNDays(30);
+  const series=days.map(k=>DB.mood[k]||0);
+  document.getElementById('mood-dots').innerHTML=h;
   document.getElementById('mood-tag').textContent=curMood?curMood+'/5':'';
+  const el=document.getElementById('mood-trend');
+  if(el) el.innerHTML = trendStrip('30D MOOD TREND', sparkbars(series,{max:5}));
 }
 function setMood(m){curMood=(curMood===m)?0:m;renderMood();}
 function saveJournal(){
@@ -618,7 +813,7 @@ function clr(id){document.getElementById(id).value='';}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function fmtD(d){if(!d)return'';const dt=new Date(d+ (d.length===10?'T00:00':''));return dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}).toUpperCase();}
 
-function renderAll(){renderHome();renderQuant();renderCollege();renderSelf();renderJournal();renderMood();}
+function renderAll(){renderHome();renderQuant();renderCollege();renderSelf();renderGym();renderJournal();renderMood();}
 
 /* ───────── BOOT ───────── */
 document.getElementById('wipe').onclick=async()=>{
