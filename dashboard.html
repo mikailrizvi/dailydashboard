@@ -199,11 +199,12 @@
       <div class="stats" id="home-stats"></div>
       <div class="grid g2">
         <div class="card">
-          <h3>Today <span class="tag">FOCUS</span></h3>
+          <h3>Today <span class="tag">FOCUS · ROLLS OVER</span></h3>
           <div id="home-today"></div>
           <div class="addrow">
             <input id="ft-in" placeholder="Add a focus task…">
             <button class="btn sm" onclick="addFocus()">ADD</button>
+            <button class="btn ghost sm" onclick="clearDoneFocus()">CLEAR DONE</button>
           </div>
         </div>
         <div class="card">
@@ -340,6 +341,7 @@
         <div class="card">
           <h3>Log <span class="tag" id="jcount"></span></h3>
           <div id="journal-log"></div>
+          <button class="btn ghost sm" style="margin-top:12px" onclick="clearJournal()">CLEAR ALL ENTRIES</button>
         </div>
       </div>
     </section>
@@ -415,8 +417,15 @@ function go(v){
 
 /* ───────── HOME ───────── */
 function addFocus(){const i=document.getElementById('ft-in');if(!i.value.trim())return;DB.focus.push({id:uid(),t:i.value.trim(),done:false,d:today()});i.value='';save();renderHome();}
+function clearDoneFocus(){
+  const n=DB.focus.filter(f=>f.done).length;
+  if(!n)return;
+  if(!confirm(`Clear ${n} completed focus task${n>1?'s':''}?`))return;
+  DB.focus=DB.focus.filter(f=>!f.done);save();renderHome();
+}
 function renderHome(){
-  const fToday=DB.focus.filter(f=>f.d===today());
+  // rolling: show any unfinished task + tasks completed today
+  const fToday=DB.focus.filter(f=>!f.done || f.d===today());
   const done=fToday.filter(f=>f.done).length;
   const wk=weekKeys(); const wkey=weekKeyForWorkout();
   const stats=[
@@ -445,7 +454,7 @@ function renderHome(){
     <div class="chk"><div class="t">${esc(it.t)}</div><span class="pill g">${esc(it.tag)}</span><span class="mut" style="margin-left:8px">${fmtD(it.d)}</span></div>`).join('')
     : '<div class="empty">NOTHING SCHEDULED</div>';
 }
-function toggleFocus(id){const f=DB.focus.find(x=>x.id===id);if(f){f.done=!f.done;save();renderHome();}}
+function toggleFocus(id){const f=DB.focus.find(x=>x.id===id);if(f){f.done=!f.done;if(f.done)f.d=today();save();renderHome();}}
 function delFocus(id){DB.focus=DB.focus.filter(x=>x.id!==id);save();renderHome();}
 
 /* ───────── QUANT ───────── */
@@ -587,6 +596,11 @@ function saveJournal(){
   document.getElementById('jtext').value='';curMood=0;renderMood();newPrompt();save();renderJournal();
 }
 function delJournal(id){DB.journal=DB.journal.filter(x=>x.id!==id);save();renderJournal();}
+function clearJournal(){
+  const n=DB.journal.length;if(!n)return;
+  if(!confirm(`Delete all ${n} journal entr${n>1?'ies':'y'}? This cannot be undone.`))return;
+  DB.journal=[];save();renderJournal();
+}
 function renderJournal(){
   document.getElementById('jcount').textContent=DB.journal.length+' ENTRIES';
   document.getElementById('journal-log').innerHTML = DB.journal.length? DB.journal.map(j=>`
