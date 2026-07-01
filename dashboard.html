@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OPS // COMMAND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0a0a; --panel:#111; --panel2:#161616;
+    --ink:#ededed; --ink2:#8a8a8a; --ink3:#565656;
+    --line:#2a2a2a; --line2:#3a3a3a;
+    --hi:#f5f5f5; --accent:#fff;
+    --mono:'JetBrains Mono',monospace; --disp:'Space Grotesk',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg); color:var(--ink); font-family:var(--mono);
+    font-size:14px; line-height:1.45; -webkit-font-smoothing:antialiased;
+    background-image:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(255,255,255,.012) 3px,rgba(255,255,255,.012) 4px);
+  }
+  ::selection{background:#fff;color:#000}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-track{background:#0a0a0a}
+  ::-webkit-scrollbar-thumb{background:#2a2a2a;border:2px solid #0a0a0a}
+  ::-webkit-scrollbar-thumb:hover{background:#3a3a3a}
+
+  .app{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+
+  /* ── RAIL ── */
+  .rail{
+    border-right:1px solid var(--line); background:var(--panel);
+    position:sticky;top:0;height:100vh;display:flex;flex-direction:column;
+    padding:0;overflow-y:auto;
+  }
+  .brand{padding:20px 18px 16px;border-bottom:1px solid var(--line)}
+  .brand h1{font-family:var(--disp);font-weight:700;font-size:19px;letter-spacing:-.5px;line-height:1}
+  .brand .sub{font-size:9.5px;color:var(--ink3);letter-spacing:3px;margin-top:6px;text-transform:uppercase}
+  .clock{padding:14px 18px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+  .clock .date{font-size:11px;color:var(--ink2);letter-spacing:1px}
+  .clock .time{font-family:var(--disp);font-size:26px;font-weight:500;letter-spacing:-1px;margin-top:2px}
+  nav{padding:8px 0;flex:1}
+  .navitem{
+    display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;
+    color:var(--ink3);font-family:var(--mono);font-size:12.5px;letter-spacing:.5px;
+    padding:11px 18px;cursor:pointer;text-align:left;border-left:2px solid transparent;
+    text-transform:uppercase;transition:all .12s;
+  }
+  .navitem:hover{color:var(--ink);background:var(--panel2)}
+  .navitem.on{color:var(--hi);border-left-color:#fff;background:var(--panel2)}
+  .navitem .idx{color:var(--ink3);font-size:10px;width:16px}
+  .navitem.on .idx{color:var(--ink2)}
+  .railfoot{padding:14px 18px;border-top:1px solid var(--line);font-size:9.5px;color:var(--ink3);letter-spacing:1px}
+  .railfoot button{background:none;border:1px solid var(--line2);color:var(--ink3);font-family:var(--mono);
+    font-size:9px;padding:5px 8px;cursor:pointer;letter-spacing:1px;margin-top:6px;width:100%}
+  .railfoot button:hover{color:var(--ink);border-color:var(--ink2)}
+
+  /* ── MAIN ── */
+  main{padding:0;min-width:0}
+  .view{display:none;padding:28px 34px 80px;animation:fade .25s}
+  .view.on{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+  .vhead{display:flex;align-items:baseline;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:24px;flex-wrap:wrap;gap:10px}
+  .vhead h2{font-family:var(--disp);font-size:30px;font-weight:700;letter-spacing:-1px}
+  .vhead .meta{font-size:10px;color:var(--ink3);letter-spacing:2px;text-transform:uppercase}
+
+  .grid{display:grid;gap:16px}
+  .g2{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  @media(max-width:1050px){.g2,.g3{grid-template-columns:1fr}}
+
+  .card{background:var(--panel);border:1px solid var(--line);padding:18px}
+  .card h3{font-family:var(--disp);font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;color:var(--ink)}
+  .card h3 .tag{font-family:var(--mono);font-size:9px;color:var(--ink3);font-weight:400;letter-spacing:1px}
+
+  .eyebrow{font-size:9.5px;letter-spacing:2.5px;color:var(--ink3);text-transform:uppercase;margin-bottom:10px}
+
+  /* stat blocks */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-bottom:22px}
+  .stat{background:var(--panel);padding:16px 14px}
+  .stat .n{font-family:var(--disp);font-size:32px;font-weight:500;letter-spacing:-1px;line-height:1;font-variant-numeric:tabular-nums}
+  .stat .l{font-size:9.5px;color:var(--ink3);letter-spacing:1.5px;text-transform:uppercase;margin-top:8px}
+  @media(max-width:700px){.stats{grid-template-columns:repeat(2,1fr)}}
+
+  /* inputs */
+  input,select,textarea{
+    background:#0c0c0c;border:1px solid var(--line2);color:var(--ink);
+    font-family:var(--mono);font-size:12.5px;padding:8px 10px;width:100%;outline:none;
+  }
+  input:focus,select:focus,textarea:focus{border-color:var(--ink2);background:#0f0f0f}
+  input::placeholder,textarea::placeholder{color:var(--ink3)}
+  label.fld{display:block;margin-bottom:10px}
+  label.fld .k{font-size:9.5px;color:var(--ink3);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px;display:block}
+  .row{display:flex;gap:8px}
+  .btn{
+    background:#fff;color:#000;border:1px solid #fff;font-family:var(--mono);font-weight:700;
+    font-size:11px;letter-spacing:1px;padding:9px 14px;cursor:pointer;text-transform:uppercase;transition:all .1s;
+  }
+  .btn:hover{background:#000;color:#fff}
+  .btn.ghost{background:none;color:var(--ink2);border-color:var(--line2)}
+  .btn.ghost:hover{color:#fff;border-color:#fff}
+  .btn.sm{padding:5px 9px;font-size:9.5px}
+
+  /* tables / lists */
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th{text-align:left;font-size:9px;letter-spacing:1.5px;color:var(--ink3);text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--line2)}
+  td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+  tr:hover td{background:var(--panel2)}
+  .pill{display:inline-block;font-size:9px;letter-spacing:1px;padding:2px 7px;border:1px solid var(--line2);text-transform:uppercase;color:var(--ink2)}
+  .pill.b{background:#fff;color:#000;border-color:#fff}
+  .pill.g{background:#1c1c1c;color:var(--ink)}
+  .x{background:none;border:none;color:var(--ink3);cursor:pointer;font-family:var(--mono);font-size:13px;padding:2px 6px}
+  .x:hover{color:#fff}
+  .empty{color:var(--ink3);font-size:11px;letter-spacing:1px;padding:16px 4px;text-align:center}
+
+  /* checklist */
+  .chk{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--line)}
+  .chk:last-child{border-bottom:none}
+  .box{width:16px;height:16px;border:1px solid var(--line2);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px}
+  .box.done{background:#fff;color:#000;border-color:#fff}
+  .chk .t{flex:1;font-size:12.5px}
+  .chk.done .t{color:var(--ink3);text-decoration:line-through}
+
+  /* trackers */
+  .track{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .track .lab{font-size:10px;letter-spacing:1px;color:var(--ink2);width:70px;text-transform:uppercase}
+  .dots{display:flex;gap:4px;flex-wrap:wrap}
+  .dot{width:22px;height:22px;border:1px solid var(--line2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--ink3)}
+  .dot.fill{background:#fff;border-color:#fff}
+  .bar{height:6px;background:#1a1a1a;border:1px solid var(--line);position:relative;flex:1}
+  .bar > i{position:absolute;left:0;top:0;bottom:0;background:#fff;display:block}
+
+  /* calendar */
+  .cal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+  .cal-head .mo{font-family:var(--disp);font-size:20px;font-weight:500;letter-spacing:-.5px}
+  .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
+  .cal .dow{background:var(--panel);font-size:8.5px;letter-spacing:1px;color:var(--ink3);text-align:center;padding:7px 0;text-transform:uppercase}
+  .cell{background:var(--panel);min-height:78px;padding:5px 6px;cursor:pointer;position:relative}
+  .cell:hover{background:var(--panel2)}
+  .cell.off{background:#0c0c0c}
+  .cell.today{outline:1px solid #fff;outline-offset:-1px}
+  .cell .dn{font-size:11px;color:var(--ink2);font-variant-numeric:tabular-nums}
+  .cell.today .dn{color:#fff;font-weight:700}
+  .ev{font-size:8.5px;letter-spacing:.3px;background:#fff;color:#000;padding:1px 3px;margin-top:3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .ev.o{background:none;color:var(--ink2);border:1px solid var(--line2)}
+
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:900px){.split{grid-template-columns:1fr}}
+  .mut{color:var(--ink3);font-size:10.5px;letter-spacing:.5px}
+  .addrow{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .addrow input,.addrow select{flex:1;min-width:90px}
+  textarea{resize:vertical;min-height:90px;line-height:1.6}
+  .journal-entry{border:1px solid var(--line);padding:12px 14px;margin-bottom:10px;background:var(--panel)}
+  .journal-entry .jd{font-size:9.5px;color:var(--ink3);letter-spacing:1.5px;margin-bottom:6px;display:flex;justify-content:space-between}
+  .journal-entry .jt{font-size:12.5px;line-height:1.65;white-space:pre-wrap;color:var(--ink)}
+  .prompt{font-size:10.5px;color:var(--ink3);font-style:italic;margin-bottom:8px;letter-spacing:.3px}
+  .loading{padding:40px;text-align:center;color:var(--ink3);letter-spacing:2px;font-size:11px}
+  @media(max-width:760px){
+    .app{grid-template-columns:1fr}
+    .rail{position:relative;height:auto;flex-direction:row;flex-wrap:wrap;top:auto}
+    .brand,.clock{border-bottom:none;border-right:1px solid var(--line)}
+    nav{display:flex;flex-wrap:wrap;width:100%;border-top:1px solid var(--line)}
+    .navitem{width:auto;flex:1;justify-content:center;border-left:none;border-bottom:2px solid transparent}
+    .navitem.on{border-left:none;border-bottom-color:#fff}
+    .railfoot{width:100%}
+    .view{padding:20px 16px 60px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail">
+    <div class="brand">
+      <h1>OPS//CMD</h1>
+      <div class="sub">Personal Ops</div>
+    </div>
+    <div class="clock">
+      <div class="date" id="cdate">—</div>
+      <div class="time" id="ctime">—</div>
+    </div>
+    <nav id="nav"></nav>
+    <div class="railfoot">
+      <div id="savestate">LOCAL // SYNCED</div>
+      <button id="export">EXPORT DATA</button>
+      <button id="import">IMPORT DATA</button>
+      <button id="wipe">RESET ALL DATA</button>
+      <input id="import-file" type="file" accept="application/json,.json" style="display:none">
+    </div>
+  </aside>
+
+  <main>
+    <!-- OVERVIEW -->
+    <section class="view on" data-v="home">
+      <div class="vhead"><h2>Command</h2><div class="meta" id="home-meta">STATUS</div></div>
+      <div class="stats" id="home-stats"></div>
+      <div class="grid g2">
+        <div class="card">
+          <h3>Today <span class="tag">FOCUS</span></h3>
+          <div id="home-today"></div>
+          <div class="addrow">
+            <input id="ft-in" placeholder="Add a focus task…">
+            <button class="btn sm" onclick="addFocus()">ADD</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Next Up <span class="tag">DEADLINES + EVENTS</span></h3>
+          <div id="home-next"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RECRUITING -->
+    <section class="view" data-v="quant">
+      <div class="vhead"><h2>Quant Recruiting</h2><div class="meta" id="quant-meta">PIPELINE</div></div>
+      <div class="stats" id="quant-stats"></div>
+      <div class="card" style="margin-bottom:16px">
+        <h3>Application Pipeline <span class="tag">FIRMS × STAGE</span></h3>
+        <table><thead><tr><th>Firm</th><th>Role</th><th>Stage</th><th>Next</th><th></th></tr></thead>
+          <tbody id="pipe-body"></tbody></table>
+        <div class="addrow">
+          <input id="pf-firm" placeholder="Firm">
+          <input id="pf-role" placeholder="Role">
+          <select id="pf-stage">
+            <option>Watchlist</option><option>Applied</option><option>OA</option>
+            <option>Phone</option><option>Superday</option><option>Offer</option><option>Rejected</option>
+          </select>
+          <input id="pf-next" placeholder="Next action / date">
+          <button class="btn sm" onclick="addPipe()">ADD</button>
+        </div>
+      </div>
+      <div class="grid g2">
+        <div class="card">
+          <h3>Prep Tracker <span class="tag">DRILLS</span></h3>
+          <div class="eyebrow">Probability · Brainteasers · Coding · Mental Math</div>
+          <div id="prep-list"></div>
+          <div class="addrow">
+            <select id="pr-cat"><option>Probability</option><option>Brainteaser</option><option>Coding</option><option>Mental Math</option><option>Markets</option></select>
+            <input id="pr-topic" placeholder="Topic / problem set">
+            <button class="btn sm" onclick="addPrep()">ADD</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Network <span class="tag">CONTACTS</span></h3>
+          <table><thead><tr><th>Name</th><th>Firm</th><th>Status</th><th></th></tr></thead>
+            <tbody id="net-body"></tbody></table>
+          <div class="addrow">
+            <input id="nf-name" placeholder="Name">
+            <input id="nf-firm" placeholder="Firm">
+            <select id="nf-status"><option>To reach out</option><option>Messaged</option><option>Chatted</option><option>Referral</option></select>
+            <button class="btn sm" onclick="addNet()">ADD</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- COLLEGE -->
+    <section class="view" data-v="college">
+      <div class="vhead"><h2>College</h2><div class="meta">SCHEDULE + WORK</div></div>
+      <div class="split">
+        <div class="card">
+          <h3>Class Schedule <span class="tag">WEEKLY</span></h3>
+          <table><thead><tr><th>Course</th><th>Day</th><th>Time</th><th>Loc</th><th></th></tr></thead>
+            <tbody id="cls-body"></tbody></table>
+          <div class="addrow">
+            <input id="cf-course" placeholder="Course">
+            <select id="cf-day"><option>Mon</option><option>Tue</option><option>Wed</option><option>Thu</option><option>Fri</option></select>
+            <input id="cf-time" placeholder="10:00" style="max-width:80px">
+            <input id="cf-loc" placeholder="Room" style="max-width:90px">
+            <button class="btn sm" onclick="addClass()">ADD</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Assignments <span class="tag">DEADLINES</span></h3>
+          <div id="asg-list"></div>
+          <div class="addrow">
+            <input id="af-title" placeholder="Assignment">
+            <input id="af-course" placeholder="Course" style="max-width:110px">
+            <input id="af-due" type="date" style="max-width:150px">
+            <button class="btn sm" onclick="addAsg()">ADD</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SELF -->
+    <section class="view" data-v="self">
+      <div class="vhead"><h2>Daily</h2><div class="meta" id="self-meta">SELF-MAINTENANCE</div></div>
+      <div class="grid g3">
+        <div class="card">
+          <h3>Water <span class="tag" id="water-tag">0/8</span></h3>
+          <div class="mut" style="margin-bottom:10px">Glasses today</div>
+          <div class="dots" id="water-dots"></div>
+        </div>
+        <div class="card">
+          <h3>Sleep <span class="tag">HOURS</span></h3>
+          <div class="mut" style="margin-bottom:10px">Last night</div>
+          <div class="row" style="align-items:center">
+            <input id="sleep-in" type="number" step="0.5" min="0" max="14" placeholder="7.5">
+            <button class="btn sm" onclick="logSleep()">LOG</button>
+          </div>
+          <div id="sleep-hist" style="margin-top:14px"></div>
+        </div>
+        <div class="card">
+          <h3>Workout <span class="tag" id="wk-tag"></span></h3>
+          <div class="mut" style="margin-bottom:10px">This week</div>
+          <div class="dots" id="wk-dots"></div>
+          <input id="wk-note" placeholder="Today's session…" style="margin-top:12px">
+          <button class="btn sm" style="margin-top:8px" onclick="logWorkout()">LOG TODAY</button>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <h3>Habits <span class="tag">DAILY CHECK</span></h3>
+        <div id="habit-list"></div>
+        <div class="addrow">
+          <input id="hb-in" placeholder="New habit…">
+          <button class="btn sm" onclick="addHabit()">ADD</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- JOURNAL -->
+    <section class="view" data-v="journal">
+      <div class="vhead"><h2>Journal</h2><div class="meta">REFLECTION</div></div>
+      <div class="split">
+        <div class="card">
+          <h3>New Entry <span class="tag" id="mood-tag"></span></h3>
+          <div class="prompt" id="jprompt">—</div>
+          <div class="row" style="margin-bottom:10px">
+            <span class="mut" style="align-self:center">Mood</span>
+            <div class="dots" id="mood-dots"></div>
+          </div>
+          <textarea id="jtext" placeholder="Write freely…"></textarea>
+          <button class="btn" style="margin-top:10px" onclick="saveJournal()">SAVE ENTRY</button>
+          <button class="btn ghost sm" style="margin-top:10px;margin-left:6px" onclick="newPrompt()">NEW PROMPT</button>
+        </div>
+        <div class="card">
+          <h3>Log <span class="tag" id="jcount"></span></h3>
+          <div id="journal-log"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+/* ───────── STORAGE LAYER ───────── */
+const KEY='opscmd:v1';
+let DB=null;
+const DEFAULT={
+  focus:[], pipe:[], prep:[], net:[], classes:[], asg:[],
+  water:{}, sleep:[], workout:{}, habits:[
+    {t:'Read 30 min',days:{}},{t:'No phone first hour',days:{}},{t:'Sunlight',days:{}}
+  ],
+  journal:[], mood:{}
+};
+const hasHostStorage = typeof window.storage === 'object' && window.storage && typeof window.storage.get === 'function';
+async function load(){
+  let raw=null;
+  try{
+    if(hasHostStorage){
+      const r=await window.storage.get(KEY);
+      raw = r && r.value;
+    }
+    if(raw==null) raw = localStorage.getItem(KEY);
+    DB = raw ? JSON.parse(raw) : structuredClone(DEFAULT);
+  }catch(e){ DB=structuredClone(DEFAULT); }
+  for(const k in DEFAULT){ if(!(k in DB)) DB[k]=structuredClone(DEFAULT[k]); }
+}
+let saveT=null;
+async function save(){
+  clearTimeout(saveT);
+  saveT=setTimeout(async()=>{
+    const payload = JSON.stringify(DB);
+    let ok=false;
+    try{ localStorage.setItem(KEY, payload); ok=true; }catch(e){}
+    if(hasHostStorage){
+      try{ await window.storage.set(KEY, payload); ok=true; }catch(e){}
+    }
+    flash(ok ? 'LOCAL // SYNCED' : 'SYNC FAILED');
+  },120);
+}
+function flash(t){ const el=document.getElementById('savestate'); if(el){el.textContent=t;} }
+const today=()=>new Date().toISOString().slice(0,10);
+const uid=()=>Math.random().toString(36).slice(2,9);
+function weekKeys(){ // last 7 day keys ending today
+  const a=[];for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);a.push(d.toISOString().slice(0,10));}return a;
+}
+const DOWs=['SUN','MON','TUE','WED','THU','FRI','SAT'];
+
+/* ───────── CLOCK ───────── */
+function tick(){
+  const d=new Date();
+  const dd=d.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'}).toUpperCase();
+  document.getElementById('cdate').textContent=dd;
+  document.getElementById('ctime').textContent=d.toLocaleTimeString('en-US',{hour12:false});
+}
+setInterval(tick,1000);
+
+/* ───────── NAV ───────── */
+const VIEWS=[['home','Command'],['quant','Recruiting'],['college','College'],['self','Daily'],['journal','Journal']];
+function buildNav(){
+  const n=document.getElementById('nav');
+  n.innerHTML=VIEWS.map((v,i)=>`<button class="navitem${i===0?' on':''}" data-go="${v[0]}"><span class="idx">${String(i+1).padStart(2,'0')}</span>${v[1]}</button>`).join('');
+  n.querySelectorAll('.navitem').forEach(b=>b.onclick=()=>go(b.dataset.go));
+}
+function go(v){
+  document.querySelectorAll('.view').forEach(s=>s.classList.toggle('on',s.dataset.v===v));
+  document.querySelectorAll('.navitem').forEach(b=>b.classList.toggle('on',b.dataset.go===v));
+  renderAll();
+}
+
+/* ───────── HOME ───────── */
+function addFocus(){const i=document.getElementById('ft-in');if(!i.value.trim())return;DB.focus.push({id:uid(),t:i.value.trim(),done:false,d:today()});i.value='';save();renderHome();}
+function renderHome(){
+  const fToday=DB.focus.filter(f=>f.d===today());
+  const done=fToday.filter(f=>f.done).length;
+  const wk=weekKeys(); const wkey=weekKeyForWorkout();
+  const stats=[
+    ['home-stats',
+      [[DB.pipe.filter(p=>!['Rejected'].includes(p.stage)).length,'ACTIVE APPS'],
+       [DB.asg.filter(a=>!a.done).length,'OPEN ASGN'],
+       [`${done}/${fToday.length}`,'FOCUS DONE'],
+       [`${(DB.water[today()]||0)}/8`,'WATER']]
+    ]
+  ];
+  document.getElementById('home-stats').innerHTML=stats[0][1].map(s=>`<div class="stat"><div class="n">${s[0]}</div><div class="l">${s[1]}</div></div>`).join('');
+  document.getElementById('home-meta').textContent=new Date().toLocaleDateString('en-US',{weekday:'short'}).toUpperCase()+' // '+today();
+
+  const ft=document.getElementById('home-today');
+  ft.innerHTML = fToday.length? fToday.map(f=>`
+    <div class="chk ${f.done?'done':''}">
+      <div class="box ${f.done?'done':''}" onclick="toggleFocus('${f.id}')">${f.done?'✕':''}</div>
+      <div class="t">${esc(f.t)}</div>
+      <button class="x" onclick="delFocus('${f.id}')">✕</button>
+    </div>`).join('') : '<div class="empty">NO FOCUS TASKS · ADD ONE BELOW</div>';
+
+  // next up: upcoming assignments + calendar events (assignments only here, sorted)
+  const items=[...DB.asg.filter(a=>!a.done&&a.due).map(a=>({d:a.due,t:a.title,tag:a.course||'ASG'}))]
+    .sort((x,y)=>x.d.localeCompare(y.d)).slice(0,6);
+  document.getElementById('home-next').innerHTML = items.length? items.map(it=>`
+    <div class="chk"><div class="t">${esc(it.t)}</div><span class="pill g">${esc(it.tag)}</span><span class="mut" style="margin-left:8px">${fmtD(it.d)}</span></div>`).join('')
+    : '<div class="empty">NOTHING SCHEDULED</div>';
+}
+function toggleFocus(id){const f=DB.focus.find(x=>x.id===id);if(f){f.done=!f.done;save();renderHome();}}
+function delFocus(id){DB.focus=DB.focus.filter(x=>x.id!==id);save();renderHome();}
+
+/* ───────── QUANT ───────── */
+const STAGE_ORDER=['Watchlist','Applied','OA','Phone','Superday','Offer','Rejected'];
+function addPipe(){
+  const f=val('pf-firm');if(!f)return;
+  DB.pipe.push({id:uid(),firm:f,role:val('pf-role'),stage:val('pf-stage'),next:val('pf-next')});
+  ['pf-firm','pf-role','pf-next'].forEach(clr);save();renderQuant();
+}
+function cyclePipe(id){const p=DB.pipe.find(x=>x.id===id);if(!p)return;const i=STAGE_ORDER.indexOf(p.stage);p.stage=STAGE_ORDER[(i+1)%STAGE_ORDER.length];save();renderQuant();}
+function delPipe(id){DB.pipe=DB.pipe.filter(x=>x.id!==id);save();renderQuant();}
+function addPrep(){DB.prep.push({id:uid(),cat:val('pr-cat'),topic:val('pr-topic'),reps:0});clr('pr-topic');save();renderQuant();}
+function repPrep(id,d){const p=DB.prep.find(x=>x.id===id);if(p){p.reps=Math.max(0,p.reps+d);save();renderQuant();}}
+function delPrep(id){DB.prep=DB.prep.filter(x=>x.id!==id);save();renderQuant();}
+function addNet(){const n=val('nf-name');if(!n)return;DB.net.push({id:uid(),name:n,firm:val('nf-firm'),status:val('nf-status')});['nf-name','nf-firm'].forEach(clr);save();renderQuant();}
+function cycleNet(id){const s=['To reach out','Messaged','Chatted','Referral'];const c=DB.net.find(x=>x.id===id);if(c){c.status=s[(s.indexOf(c.status)+1)%s.length];save();renderQuant();}}
+function delNet(id){DB.net=DB.net.filter(x=>x.id!==id);save();renderQuant();}
+function renderQuant(){
+  const active=DB.pipe.filter(p=>p.stage!=='Rejected').length;
+  const offers=DB.pipe.filter(p=>p.stage==='Offer').length;
+  const reps=DB.prep.reduce((s,p)=>s+p.reps,0);
+  document.getElementById('quant-stats').innerHTML=[
+    [DB.pipe.length,'FIRMS'],[active,'ACTIVE'],[offers,'OFFERS'],[reps,'PREP REPS']
+  ].map(s=>`<div class="stat"><div class="n">${s[0]}</div><div class="l">${s[1]}</div></div>`).join('');
+  document.getElementById('quant-meta').textContent=DB.pipe.length+' TRACKED';
+
+  document.getElementById('pipe-body').innerHTML = DB.pipe.length? DB.pipe
+    .sort((a,b)=>STAGE_ORDER.indexOf(a.stage)-STAGE_ORDER.indexOf(b.stage))
+    .map(p=>`<tr>
+      <td><b>${esc(p.firm)}</b></td><td class="mut">${esc(p.role||'—')}</td>
+      <td><span class="pill ${p.stage==='Offer'?'b':(p.stage==='Rejected'?'':'g')}" style="cursor:pointer" onclick="cyclePipe('${p.id}')">${p.stage}</span></td>
+      <td class="mut">${esc(p.next||'—')}</td>
+      <td><button class="x" onclick="delPipe('${p.id}')">✕</button></td></tr>`).join('')
+    : '<tr><td colspan="5"><div class="empty">NO APPLICATIONS TRACKED</div></td></tr>';
+
+  document.getElementById('prep-list').innerHTML = DB.prep.length? DB.prep.map(p=>`
+    <div class="chk">
+      <span class="pill g">${p.cat}</span>
+      <div class="t">${esc(p.topic||'—')}</div>
+      <span class="mut" style="margin:0 6px">${p.reps} reps</span>
+      <button class="btn ghost sm" onclick="repPrep('${p.id}',1)">+</button>
+      <button class="btn ghost sm" onclick="repPrep('${p.id}',-1)">−</button>
+      <button class="x" onclick="delPrep('${p.id}')">✕</button>
+    </div>`).join('') : '<div class="empty">NO DRILLS · ADD PROBABILITY/CODING SETS</div>';
+
+  document.getElementById('net-body').innerHTML = DB.net.length? DB.net.map(c=>`
+    <tr><td><b>${esc(c.name)}</b></td><td class="mut">${esc(c.firm||'—')}</td>
+    <td><span class="pill ${c.status==='Referral'?'b':'g'}" style="cursor:pointer" onclick="cycleNet('${c.id}')">${c.status}</span></td>
+    <td><button class="x" onclick="delNet('${c.id}')">✕</button></td></tr>`).join('')
+    : '<tr><td colspan="4"><div class="empty">NO CONTACTS</div></td></tr>';
+}
+
+/* ───────── COLLEGE ───────── */
+const DAY_ORD=['Mon','Tue','Wed','Thu','Fri'];
+function addClass(){const c=val('cf-course');if(!c)return;DB.classes.push({id:uid(),course:c,day:val('cf-day'),time:val('cf-time'),loc:val('cf-loc')});['cf-course','cf-time','cf-loc'].forEach(clr);save();renderCollege();}
+function delClass(id){DB.classes=DB.classes.filter(x=>x.id!==id);save();renderCollege();}
+function addAsg(){const t=val('af-title');if(!t)return;DB.asg.push({id:uid(),title:t,course:val('af-course'),due:val('af-due'),done:false});['af-title','af-course','af-due'].forEach(clr);save();renderCollege();renderHome();}
+function toggleAsg(id){const a=DB.asg.find(x=>x.id===id);if(a){a.done=!a.done;save();renderCollege();renderHome();}}
+function delAsg(id){DB.asg=DB.asg.filter(x=>x.id!==id);save();renderCollege();renderHome();}
+function renderCollege(){
+  document.getElementById('cls-body').innerHTML = DB.classes.length? DB.classes
+    .sort((a,b)=>DAY_ORD.indexOf(a.day)-DAY_ORD.indexOf(b.day)||(a.time||'').localeCompare(b.time||''))
+    .map(c=>`<tr><td><b>${esc(c.course)}</b></td><td><span class="pill g">${c.day}</span></td>
+      <td class="mut">${esc(c.time||'—')}</td><td class="mut">${esc(c.loc||'—')}</td>
+      <td><button class="x" onclick="delClass('${c.id}')">✕</button></td></tr>`).join('')
+    : '<tr><td colspan="5"><div class="empty">NO CLASSES ADDED</div></td></tr>';
+
+  const sorted=[...DB.asg].sort((a,b)=>{if(a.done!==b.done)return a.done?1:-1;return (a.due||'9').localeCompare(b.due||'9');});
+  document.getElementById('asg-list').innerHTML = sorted.length? sorted.map(a=>{
+    const overdue=!a.done&&a.due&&a.due<today();
+    return `<div class="chk ${a.done?'done':''}">
+      <div class="box ${a.done?'done':''}" onclick="toggleAsg('${a.id}')">${a.done?'✕':''}</div>
+      <div class="t">${esc(a.title)} <span class="mut">${a.course?'· '+esc(a.course):''}</span></div>
+      ${a.due?`<span class="pill ${overdue?'b':'g'}">${fmtD(a.due)}</span>`:''}
+      <button class="x" onclick="delAsg('${a.id}')">✕</button></div>`;
+  }).join('') : '<div class="empty">NO ASSIGNMENTS</div>';
+}
+
+/* ───────── SELF ───────── */
+function renderWater(){
+  const n=DB.water[today()]||0;
+  document.getElementById('water-tag').textContent=n+'/8';
+  let h='';for(let i=1;i<=8;i++){h+=`<div class="dot ${i<=n?'fill':''}" onclick="setWater(${i})">${i<=n?'':i}</div>`;}
+  document.getElementById('water-dots').innerHTML=h;
+}
+function setWater(i){const c=DB.water[today()]||0;DB.water[today()]=(c===i)?i-1:i;save();renderWater();renderHome();}
+function logSleep(){const v=parseFloat(val('sleep-in'));if(!v)return;DB.sleep=DB.sleep.filter(s=>s.d!==today());DB.sleep.push({d:today(),h:v});clr('sleep-in');save();renderSleep();}
+function renderSleep(){
+  const last=DB.sleep.slice(-5).reverse();
+  document.getElementById('sleep-hist').innerHTML=last.length? last.map(s=>`
+    <div class="track"><span class="lab">${fmtD(s.d)}</span>
+    <div class="bar"><i style="width:${Math.min(100,s.h/9*100)}%"></i></div>
+    <span class="mut" style="width:36px;text-align:right">${s.h}h</span></div>`).join('')
+    : '<div class="empty">NO SLEEP LOGGED</div>';
+}
+function weekKeyForWorkout(){const d=new Date();const day=(d.getDay()+6)%7;d.setDate(d.getDate()-day);return d.toISOString().slice(0,10);}
+function renderWorkout(){
+  const wk=weekKeys();
+  const cnt=wk.filter(k=>DB.workout[k]).length;
+  document.getElementById('wk-tag').textContent=cnt+'/7';
+  document.getElementById('wk-dots').innerHTML=wk.map(k=>{
+    const on=DB.workout[k];const lbl=DOWs[new Date(k+'T00:00').getDay()][0];
+    return `<div class="dot ${on?'fill':''}" title="${k}${on?': '+esc(on):''}" onclick="toggleWk('${k}')">${on?'':lbl}</div>`;
+  }).join('');
+}
+function toggleWk(k){if(DB.workout[k])delete DB.workout[k];else DB.workout[k]='✓';save();renderWorkout();}
+function logWorkout(){const note=val('wk-note')||'✓';DB.workout[today()]=note;clr('wk-note');save();renderWorkout();}
+function addHabit(){const t=val('hb-in');if(!t)return;DB.habits.push({t,days:{}});clr('hb-in');save();renderHabits();}
+function toggleHabit(i){const h=DB.habits[i];h.days[today()]=!h.days[today()];save();renderHabits();}
+function delHabit(i){DB.habits.splice(i,1);save();renderHabits();}
+function renderHabits(){
+  document.getElementById('habit-list').innerHTML = DB.habits.length? DB.habits.map((h,i)=>{
+    const wk=weekKeys();const streak=wk.filter(k=>h.days[k]).length;const on=h.days[today()];
+    return `<div class="chk ${on?'done':''}">
+      <div class="box ${on?'done':''}" onclick="toggleHabit(${i})">${on?'✕':''}</div>
+      <div class="t">${esc(h.t)}</div>
+      <span class="mut" style="margin-right:8px">${streak}/7 wk</span>
+      <button class="x" onclick="delHabit(${i})">✕</button></div>`;
+  }).join('') : '<div class="empty">NO HABITS</div>';
+}
+function renderSelf(){renderWater();renderSleep();renderWorkout();renderHabits();
+  const w=DB.water[today()]||0;const sl=DB.sleep.find(s=>s.d===today());
+  document.getElementById('self-meta').textContent=`${w}/8 WATER · ${sl?sl.h+'H SLEEP':'NO SLEEP LOG'}`;
+}
+
+/* ───────── JOURNAL ───────── */
+const PROMPTS=['What went right today, and why?','One thing you avoided — name it.','What would make tomorrow a win?','Where did your attention leak?','What are you actually anxious about right now?','One thing you learned in the last 24h.','Who do you want to become this year?','What did you do today that future-you will thank you for?'];
+let curMood=0;
+function newPrompt(){document.getElementById('jprompt').textContent=PROMPTS[Math.floor(Math.random()*PROMPTS.length)];}
+function renderMood(){
+  document.getElementById('mood-dots').innerHTML=[1,2,3,4,5].map(m=>`<div class="dot ${m<=curMood?'fill':''}" onclick="setMood(${m})">${m<=curMood?'':m}</div>`).join('');
+  document.getElementById('mood-tag').textContent=curMood?curMood+'/5':'';
+}
+function setMood(m){curMood=(curMood===m)?0:m;renderMood();}
+function saveJournal(){
+  const t=val('jtext');if(!t)return;
+  DB.journal.unshift({id:uid(),d:new Date().toISOString(),t,mood:curMood,prompt:document.getElementById('jprompt').textContent});
+  if(curMood)DB.mood[today()]=curMood;
+  document.getElementById('jtext').value='';curMood=0;renderMood();newPrompt();save();renderJournal();
+}
+function delJournal(id){DB.journal=DB.journal.filter(x=>x.id!==id);save();renderJournal();}
+function renderJournal(){
+  document.getElementById('jcount').textContent=DB.journal.length+' ENTRIES';
+  document.getElementById('journal-log').innerHTML = DB.journal.length? DB.journal.map(j=>`
+    <div class="journal-entry">
+      <div class="jd"><span>${new Date(j.d).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}).toUpperCase()}${j.mood?' · MOOD '+j.mood+'/5':''}</span>
+      <button class="x" onclick="delJournal('${j.id}')">✕</button></div>
+      ${j.prompt&&j.prompt!=='—'?`<div class="prompt">${esc(j.prompt)}</div>`:''}
+      <div class="jt">${esc(j.t)}</div></div>`).join('')
+    : '<div class="empty">NO ENTRIES YET</div>';
+}
+
+/* ───────── UTIL ───────── */
+function val(id){return (document.getElementById(id).value||'').trim();}
+function clr(id){document.getElementById(id).value='';}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function fmtD(d){if(!d)return'';const dt=new Date(d+ (d.length===10?'T00:00':''));return dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}).toUpperCase();}
+
+function renderAll(){renderHome();renderQuant();renderCollege();renderSelf();renderJournal();renderMood();}
+
+/* ───────── BOOT ───────── */
+document.getElementById('wipe').onclick=async()=>{
+  if(confirm('Wipe ALL data permanently?')){DB=structuredClone(DEFAULT);await save();renderAll();}
+};
+document.getElementById('export').onclick=()=>{
+  const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`opscmd-${today()}.json`;
+  document.body.appendChild(a);a.click();a.remove();
+  URL.revokeObjectURL(url);
+  flash('EXPORTED');
+};
+document.getElementById('import').onclick=()=>document.getElementById('import-file').click();
+document.getElementById('import-file').onchange=async(e)=>{
+  const f=e.target.files[0];if(!f)return;
+  try{
+    const txt=await f.text();
+    const parsed=JSON.parse(txt);
+    if(!parsed||typeof parsed!=='object')throw new Error('bad file');
+    if(!confirm('Replace all current data with imported file?')){e.target.value='';return;}
+    DB=parsed;
+    for(const k in DEFAULT){ if(!(k in DB)) DB[k]=structuredClone(DEFAULT[k]); }
+    await save();renderAll();flash('IMPORTED');
+  }catch(err){ alert('Import failed: '+err.message); }
+  e.target.value='';
+};
+// enter-to-add on key inputs
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Enter')return;const id=e.target.id;const map={
+    'ft-in':addFocus,'pf-next':addPipe,'pr-topic':addPrep,'nf-status':addNet,
+    'cf-loc':addClass,'af-due':addAsg,'hb-in':addHabit,'sleep-in':logSleep,'wk-note':logWorkout
+  };if(map[id]){map[id]();}
+});
+
+(async function(){
+  tick();buildNav();
+  await load();
+  newPrompt();renderAll();
+})();
+</script>
+</body>
+</html>
